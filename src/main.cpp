@@ -65,13 +65,30 @@ void loop()
 {
   mqtt.loop();
 
+  //* Dados:
+  float temperatura = 50.0f;
+  bool estado = true;
+  unsigned int timestamp = 1793796662;
+  String mensagemErro = "Sem Erro";
+  int posicaoDisplay = 3;
+
   static unsigned long ultimoEnvio = 0;
   const unsigned long tempoEntreEnvios = 5000;
   if (millis() - ultimoEnvio > tempoEntreEnvios)
   {
     ultimoEnvio = millis();
-    String envio = "Ola mundo " + String(millis() / tempoEntreEnvios);
-    mqtt.publish(TOPICO_PUB, envio.c_str());
+
+    JsonDocument doc;
+    doc["temperatura"] = temperatura;
+    doc["estado"] = estado;
+    doc["timestamp"] = timestamp;
+    doc["mensagemErro"] = mensagemErro;
+    doc["posicaoDisplay"] = posicaoDisplay;
+
+    String mensagem;
+    serializeJson(doc, mensagem);
+    mqtt.publish(TOPICO_PUB, mensagem.c_str());
+    Serial.printf("Mensagem a ser enviada no tópico %s:\n\r%s\n\r", TOPICO_PUB, mensagem.c_str());
   }
 
 }
