@@ -1,10 +1,3 @@
-//? Projeto: MQTT
-//? Descrição: Conectando MQTT
-//? Autor: Guilherme Pereira Neves dos Santos
-//? Data: 03/11/2026
-//? Versão: 0.1
-
-
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -16,13 +9,13 @@ void tratarJson(String);
 const char* SSID = "SENAI EDUCACIONAL";
 const char* SENHA = "info@134";
 
-const char* BROKER = "broker.hivemq.com"; //* endereço do servidor mqtt
+const char* BROKER = "broker.emqx.io"; //* endereço do servidor mqtt
 const int PORTA = 1883;
-const char* TOPICO_SUB = "senai134/esp32/guity/comando";
-const char* TOPICO_PUB = "senai134/esp32/guity/status";
+const char* TOPICO_SUB = "senai134/esp32/bruno/comando";
+const char* TOPICO_PUB = "senai134/esp32/bruno/status";
 
-WiFiClient rihannaClient; //* Instancia um cliente para que outros objetos utilizem a conexão WiFi
-PubSubClient mqttAriana(rihannaClient); //* Instancia um objeto para criar conexão com o broker
+WiFiClient wifiClient; //* Instancia um cliente para que outros objetos utilizem a conexão WiFi
+PubSubClient mqtt(wifiClient); //* Instancia um objeto para criar conexão com o broker
 
 void setup() 
 {
@@ -45,35 +38,45 @@ void setup()
 
     Serial.printf("Conectado ao Broker %s\n\r", BROKER);
 
-    mqttAriana.setServer(BROKER, PORTA);
-    mqttAriana.setCallback(aoReceber); //TODO criar essa função 
+    mqtt.setServer(BROKER, PORTA); //! 1883 ou 8883
+    mqtt.setCallback(aoReceber);
 
     String id = "esp32-" + String((uint32_t)ESP.getEfuseMac(), HEX);
 
     bool conectadoAoBroker = false;
-    conectadoAoBroker = mqttAriana.connect(id.c_str());
+    conectadoAoBroker = mqtt.connect(id.c_str());
 
     if(conectadoAoBroker)
       {
         Serial.printf("Conectado com sucesso ao Broker %s\n\r", BROKER);
-        mqttAriana.subscribe(TOPICO_SUB);
+        mqtt.subscribe(TOPICO_SUB);
         Serial.printf("Inscrito no tópico: %s\n\r", TOPICO_SUB);
       }
 
     else
       {
         Serial.print("Falha ao conectar ao broker %s\n\r");
-        Serial.print("Falha: "); Serial.println(mqttAriana.state());
+        Serial.print("Falha: "); Serial.println(mqtt.state());
       }
 
 }
 
 void loop() 
 {
-  mqttAriana.loop();
+  mqtt.loop();
+
+  static unsigned long ultimoEnvio = 0;
+  const unsigned long tempoEntreEnvios = 5000;
+  if (millis() - ultimoEnvio > tempoEntreEnvios)
+  {
+    ultimoEnvio = millis();
+    String envio = "Ola mundo " + String(millis() / tempoEntreEnvios);
+    mqtt.publish(TOPICO_PUB, envio.c_str());
+  }
+
 }
 
-void aoReceber(char* topico, byte* payload, unsigned int tamanho)
+void aoReceber(char* topico, uint8_t* payload, unsigned int tamanho)
 {
   String mensagem;
   mensagem.reserve(tamanho); //* evita realocações enquanto a string cresce.
@@ -91,11 +94,11 @@ void aoReceber(char* topico, byte* payload, unsigned int tamanho)
 
 void tratarJson(String mensagem)
 {
-  JsonDocument docAdele;
+  JsonDocument doc;
 
-  DeserializationError codigoErro = deserializeJson(docAdele, mensagem);
+  DeserializationError codigoErro = deserializeJson(doc, mensagem);
 
-  bool estadoLed = docAdele["estadoLed"].as<bool>();
+  bool estadoLed = doc["estadoLed"].as<bool>();
 
   if(estadoLed)
   {
